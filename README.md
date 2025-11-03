@@ -123,7 +123,7 @@ The monitoring dashboard provides real-time insights into:
 
 2. Run the dashboard:
     ```bash
-    streamlit run src/monitoring/dashboard.py
+    python -m streamlit run src/monitoring/dashboard.py  
     ```
 
 3. Open your browser to `http://localhost:8501`.

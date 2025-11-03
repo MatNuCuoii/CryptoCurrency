@@ -93,9 +93,8 @@ class MonitoringDashboard:
             st.warning(f"No historical data available for {coin}")
             return
 
-        # 1. Main Candlestick chart with Volume
-        st.subheader("📊 Price & Volume Overview")
-        fig_main = make_subplots(
+        # Candlestick chart
+        fig = make_subplots(
             rows=2, cols=1,
             shared_xaxes=True,
             vertical_spacing=0.1,
@@ -104,7 +103,7 @@ class MonitoringDashboard:
         )
 
         # Candlestick
-        fig_main.add_trace(
+        fig.add_trace(
             go.Candlestick(
                 x=df.index,
                 open=df['open'],
@@ -116,227 +115,48 @@ class MonitoringDashboard:
             row=1, col=1
         )
 
-        # Volume bars
-        colors = ['red' if df['close'].iloc[i] < df['open'].iloc[i] else 'green' 
-                  for i in range(len(df))]
-        fig_main.add_trace(
-            go.Bar(x=df.index, y=df['volume'], name='Volume', marker_color=colors),
+        # Volume
+        fig.add_trace(
+            go.Bar(x=df.index, y=df['volume'], name='Volume', marker_color='lightblue'),
             row=2, col=1
         )
 
-        fig_main.update_layout(
+        fig.update_layout(
             height=600,
             showlegend=True,
             xaxis_rangeslider_visible=False
         )
         
-        st.plotly_chart(fig_main, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
-        # 2. Individual OHLC Line Charts
-        st.subheader("📈 OHLC Trends")
-        fig_ohlc = go.Figure()
-        
-        fig_ohlc.add_trace(go.Scatter(
-            x=df.index, y=df['open'], 
-            name='Open', mode='lines',
-            line=dict(color='blue', width=1)
-        ))
-        fig_ohlc.add_trace(go.Scatter(
-            x=df.index, y=df['high'], 
-            name='High', mode='lines',
-            line=dict(color='green', width=1)
-        ))
-        fig_ohlc.add_trace(go.Scatter(
-            x=df.index, y=df['low'], 
-            name='Low', mode='lines',
-            line=dict(color='red', width=1)
-        ))
-        fig_ohlc.add_trace(go.Scatter(
-            x=df.index, y=df['close'], 
-            name='Close', mode='lines',
-            line=dict(color='black', width=2)
-        ))
-        
-        fig_ohlc.update_layout(
-            title=f"{coin.capitalize()} - OHLC Price Lines",
-            xaxis_title="Date",
-            yaxis_title="Price (USDT)",
-            height=400,
-            hovermode='x unified'
-        )
-        
-        st.plotly_chart(fig_ohlc, use_container_width=True)
-
-        # 3. Price Range (High-Low) Chart
+        # Technical indicators
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("📏 Daily Price Range")
-            fig_range = go.Figure()
-            
-            # Calculate daily range
-            df['range'] = df['high'] - df['low']
-            df['range_pct'] = ((df['high'] - df['low']) / df['low']) * 100
-            
-            fig_range.add_trace(go.Bar(
-                x=df.index, 
-                y=df['range'],
-                name='Price Range',
-                marker_color='purple'
-            ))
-            
-            fig_range.update_layout(
-                title="Daily High-Low Range",
-                xaxis_title="Date",
-                yaxis_title="Range (USDT)",
-                height=350
-            )
-            
-            st.plotly_chart(fig_range, use_container_width=True)
-        
-        with col2:
-            st.subheader("📊 Volume Distribution")
-            fig_vol_dist = go.Figure()
-            
-            fig_vol_dist.add_trace(go.Histogram(
-                x=df['volume'],
-                nbinsx=50,
-                name='Volume Distribution',
-                marker_color='lightblue'
-            ))
-            
-            fig_vol_dist.update_layout(
-                title="Volume Distribution",
-                xaxis_title="Volume",
-                yaxis_title="Frequency",
-                height=350
-            )
-            
-            st.plotly_chart(fig_vol_dist, use_container_width=True)
-
-        # 4. Price Statistics Cards
-        st.subheader("💹 Key Metrics")
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            fig_close = go.Figure()
-            fig_close.add_trace(go.Indicator(
+            # Price statistics
+            fig_stats = go.Figure()
+            fig_stats.add_trace(go.Indicator(
                 mode="number+delta",
                 value=df['close'].iloc[-1],
-                title={'text': "Close Price"},
+                title={'text': "Current Price (USDT)"},
                 delta={'reference': df['close'].iloc[-2], 'relative': True},
-                number={'prefix': "$"}
+                domain={'x': [0, 1], 'y': [0, 1]}
             ))
-            fig_close.update_layout(height=200)
-            st.plotly_chart(fig_close, use_container_width=True)
+            fig_stats.update_layout(height=250)
+            st.plotly_chart(fig_stats, use_container_width=True)
 
         with col2:
-            fig_high = go.Figure()
-            fig_high.add_trace(go.Indicator(
-                mode="number+delta",
-                value=df['high'].iloc[-1],
-                title={'text': "High Price"},
-                delta={'reference': df['high'].iloc[-2], 'relative': True},
-                number={'prefix': "$"}
-            ))
-            fig_high.update_layout(height=200)
-            st.plotly_chart(fig_high, use_container_width=True)
-        
-        with col3:
-            fig_low = go.Figure()
-            fig_low.add_trace(go.Indicator(
-                mode="number+delta",
-                value=df['low'].iloc[-1],
-                title={'text': "Low Price"},
-                delta={'reference': df['low'].iloc[-2], 'relative': True},
-                number={'prefix': "$"}
-            ))
-            fig_low.update_layout(height=200)
-            st.plotly_chart(fig_low, use_container_width=True)
-
-        with col4:
-            fig_vol_ind = go.Figure()
-            fig_vol_ind.add_trace(go.Indicator(
+            # Volume statistics
+            fig_vol = go.Figure()
+            fig_vol.add_trace(go.Indicator(
                 mode="number+delta",
                 value=df['volume'].iloc[-1],
-                title={'text': "Volume"},
-                delta={'reference': df['volume'].mean(), 'relative': True}
+                title={'text': "Current Volume"},
+                delta={'reference': df['volume'].mean(), 'relative': True},
+                domain={'x': [0, 1], 'y': [0, 1]}
             ))
-            fig_vol_ind.update_layout(height=200)
-            st.plotly_chart(fig_vol_ind, use_container_width=True)
-
-        # 5. Box Plots for OHLC
-        st.subheader("📦 OHLC Distribution")
-        fig_box = go.Figure()
-        
-        fig_box.add_trace(go.Box(y=df['open'], name='Open', marker_color='blue'))
-        fig_box.add_trace(go.Box(y=df['high'], name='High', marker_color='green'))
-        fig_box.add_trace(go.Box(y=df['low'], name='Low', marker_color='red'))
-        fig_box.add_trace(go.Box(y=df['close'], name='Close', marker_color='black'))
-        
-        fig_box.update_layout(
-            title=f"{coin.capitalize()} - OHLC Box Plot",
-            yaxis_title="Price (USDT)",
-            height=400
-        )
-        
-        st.plotly_chart(fig_box, use_container_width=True)
-
-        # 6. Volume Analysis
-        st.subheader("📊 Volume Analysis")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Volume over time
-            fig_vol_time = go.Figure()
-            fig_vol_time.add_trace(go.Scatter(
-                x=df.index,
-                y=df['volume'],
-                fill='tozeroy',
-                name='Volume',
-                line=dict(color='lightblue')
-            ))
-            # Add moving average
-            df['vol_ma'] = df['volume'].rolling(window=7).mean()
-            fig_vol_time.add_trace(go.Scatter(
-                x=df.index,
-                y=df['vol_ma'],
-                name='7-Day MA',
-                line=dict(color='darkblue', width=2)
-            ))
-            
-            fig_vol_time.update_layout(
-                title="Volume Over Time",
-                xaxis_title="Date",
-                yaxis_title="Volume",
-                height=350
-            )
-            st.plotly_chart(fig_vol_time, use_container_width=True)
-        
-        with col2:
-            # Price vs Volume correlation
-            fig_corr = go.Figure()
-            fig_corr.add_trace(go.Scatter(
-                x=df['volume'],
-                y=df['close'],
-                mode='markers',
-                name='Price vs Volume',
-                marker=dict(
-                    size=5,
-                    color=df.index.astype('int64') / 10**9,
-                    colorscale='Viridis',
-                    showscale=True,
-                    colorbar=dict(title="Time")
-                )
-            ))
-            
-            fig_corr.update_layout(
-                title="Price vs Volume Correlation",
-                xaxis_title="Volume",
-                yaxis_title="Close Price (USDT)",
-                height=350
-            )
-            st.plotly_chart(fig_corr, use_container_width=True)
+            fig_vol.update_layout(height=250)
+            st.plotly_chart(fig_vol, use_container_width=True)
 
     def plot_training_results(self, results: dict, coin: str):
         """Plot training history and evaluation metrics."""

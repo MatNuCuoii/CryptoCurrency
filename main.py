@@ -58,7 +58,7 @@ async def collect_data(config: Config, logger: logging.Logger, coins: Optional[L
     collector = DataCollector(
         coins=coins_to_fetch,
         days=data_config['days'],
-        symbol_mapping=[],  # Adjust symbol_mapping as needed in config
+        symbol_mapping=data_config.get('symbol_mapping', []),  # Adjust symbol_mapping as needed in config
         coin_map=data_config.get('coin_map', {})
     )
 
@@ -196,7 +196,7 @@ async def run_prediction(config: Config, logger: logging.Logger, coins: Optional
     collector = DataCollector(
         coins=selected_coins,
         days=days_back,
-        symbol_mapping=[],
+        symbol_mapping=data_config.get('symbol_mapping', []),
         coin_map=data_config.get('coin_map', {})
     )
 
@@ -209,9 +209,24 @@ async def run_prediction(config: Config, logger: logging.Logger, coins: Optional
 
     for coin in selected_coins:
         recent_file = raw_predict_dir / f"{coin}_binance_recent_{today_str}.csv"
+
         if not recent_file.exists():
             logger.info(f"Recent data for {coin} not found. Collecting now...")
-            await collector.collect_recent_data([coin], days_back, raw_predict_dir)
+
+        # GỌI HÀM CÓ THẬT
+        data = await collector.collect_all_data([coin])
+
+        # Lấy đúng source binance rồi lưu ra file recent
+        coin_data = data.get(coin, {})
+        binance_df = coin_data.get("binance")
+
+        if binance_df is not None and not binance_df.empty:
+            binance_df.to_csv(recent_file)
+            logger.info(f"Saved recent binance data for {coin} at {recent_file}")
+        else:
+            logger.error(f"Failed to collect recent data for {coin}, skipping prediction.")
+            continue
+
 
         if not recent_file.exists():
             logger.error(f"Failed to collect recent data for {coin}, skipping prediction.")
