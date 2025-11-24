@@ -14,6 +14,7 @@ data:
     # Note: litentry, uniswap, aave don't have USDT pairs (only ETH pairs)
     # Note: usdcoin, binanceusd are stablecoins (not recommended for prediction)
   days: 1000
+  cryptocompare_api_key: "c9b4bd0923fcda3db5e74e8a5c235c079a1da3828f39fdca74ce1dc989cae259"
   validation_split: 0.10
   test_split: 0.10
   symbol_mapping:
@@ -90,6 +91,18 @@ data:
     usdcoin: "USDC"
     binanceusd: "BUSD"
     # Add other coins as needed
+  
+  # CryptoCompare symbol mapping (for market cap data)
+  cryptocompare_symbol_map:
+    bitcoin: "BTC"
+    ethereum: "ETH"
+    litecoin: "LTC"
+    binancecoin: "BNB"
+    cardano: "ADA"
+    solana: "SOL"
+    pancakeswap: "CAKE"
+    axieinfinity: "AXS"
+    thesandbox: "SAND"
 
 model:
   sequence_length: 50

@@ -59,7 +59,9 @@ async def collect_data(config: Config, logger: logging.Logger, coins: Optional[L
         coins=coins_to_fetch,
         days=data_config['days'],
         symbol_mapping=data_config.get('symbol_mapping', []),  # Adjust symbol_mapping as needed in config
-        coin_map=data_config.get('coin_map', {})
+        coin_map=data_config.get('coin_map', {}),
+        cryptocompare_api_key=data_config.get('cryptocompare_api_key'),
+        cryptocompare_symbol_map=data_config.get('cryptocompare_symbol_map', {})
     )
 
     data = await collector.collect_all_data(coins_to_fetch)
@@ -197,7 +199,9 @@ async def run_prediction(config: Config, logger: logging.Logger, coins: Optional
         coins=selected_coins,
         days=days_back,
         symbol_mapping=data_config.get('symbol_mapping', []),
-        coin_map=data_config.get('coin_map', {})
+        coin_map=data_config.get('coin_map', {}),
+        cryptocompare_api_key=data_config.get('cryptocompare_api_key'),
+        cryptocompare_symbol_map=data_config.get('cryptocompare_symbol_map', {})
     )
 
     today_str = datetime.now().strftime('%Y%m%d')
