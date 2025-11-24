@@ -10,7 +10,7 @@ import pandas as pd
 
 
 class DataCollector:
-    def __init__(self, coins: List[str], days: int, symbol_mapping: List[Dict[str, str]], coin_map: Dict[str, str]):
+    def __init__(self, coins: List[str], days: int, symbol_mapping: List[Dict[str, str]], coin_map: Dict[str, str], cryptocompare_api_key: str = None, cryptocompare_symbol_map: Dict[str, str] = None):
         """
         Initialize the DataCollector.
 
@@ -19,12 +19,17 @@ class DataCollector:
             days (int): Number of days of historical data to collect.
             symbol_mapping (List[Dict[str, str]]): Binance symbol mappings.
             coin_map (Dict[str, str]): Mapping of coin names to their base assets.
+            cryptocompare_api_key (str): CryptoCompare API key for market cap data.
+            cryptocompare_symbol_map (Dict[str, str]): Mapping of coin names to CryptoCompare symbols.
         """
         self.coins = coins
         self.days = days
         self.symbol_mapping = symbol_mapping
         self.coin_map = coin_map
+        self.cryptocompare_api_key = cryptocompare_api_key
+        self.cryptocompare_symbol_map = cryptocompare_symbol_map or {}
         self.binance_api = "https://api.binance.com/api/v3"
+        self.cryptocompare_api = "https://min-api.cryptocompare.com/data"
 
         # Set up logging
         self.logger = logging.getLogger(__name__)
@@ -145,6 +150,74 @@ class DataCollector:
             self.logger.error(f"Error fetching Binance data for {base_asset}/{quote_asset}: {str(e)}")
             return pd.DataFrame()
 
+    async def fetch_cryptocompare_market_cap(self, coin_name: str) -> pd.DataFrame:
+        """
+        Fetch historical market cap data from CryptoCompare API.
+
+        Args:
+            coin_name (str): Coin name (e.g., 'bitcoin', 'ethereum').
+
+        Returns:
+            pd.DataFrame: DataFrame with market cap data, or an empty DataFrame on failure.
+        """
+        # Get the CryptoCompare symbol from mapping
+        symbol = self.cryptocompare_symbol_map.get(coin_name, self.coin_map.get(coin_name, coin_name.upper()))
+        
+        # Use histoday endpoint to get daily OHLCV data which includes market cap info
+        endpoint = f"{self.cryptocompare_api}/v2/histoday"
+        
+        params = {
+            'fsym': symbol,
+            'tsym': 'USD',
+            'limit': min(self.days, 2000),  # CryptoCompare max limit is 2000
+            'api_key': self.cryptocompare_api_key
+        }
+
+        self.logger.info(f"Fetching CryptoCompare market cap data for {coin_name} (symbol: {symbol}) with days={self.days}")
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(endpoint, params=params) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise Exception(f"CryptoCompare API request failed with status {response.status}: {error_text}")
+
+                    data = await response.json()
+                    
+                    if 'Data' not in data or 'Data' not in data['Data']:
+                        raise Exception("No data in response")
+                    
+                    # Extract data from response
+                    historical_data = data['Data']['Data']
+                    market_cap_list = []
+                    
+                    for entry in historical_data:
+                        timestamp = entry['time']
+                        # Calculate market cap as close price * volumefrom (trading volume in base currency)
+                        # This is an approximation since free API doesn't provide direct market cap
+                        close_price = entry.get('close', 0)
+                        volume = entry.get('volumefrom', 0)
+                        # Better approximation: use volumeto (volume in USD) as market indicator
+                        market_cap = entry.get('volumeto', close_price * volume)
+                        
+                        market_cap_list.append({
+                            'timestamp': timestamp,
+                            'market_cap': market_cap
+                        })
+                    
+                    # Convert to DataFrame
+                    df = pd.DataFrame(market_cap_list)
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+                    df.set_index('timestamp', inplace=True)
+                    df['market_cap'] = df['market_cap'].astype(float)
+
+                    self.logger.info(f"Successfully fetched {len(df)} market cap records for {coin_name}")
+                    return df
+
+        except Exception as e:
+            self.logger.error(f"Error fetching CryptoCompare market cap for {coin_name}: {str(e)}")
+            return pd.DataFrame()
+
     def process_raw_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Process raw data by handling missing values and basic data cleaning.
@@ -168,13 +241,13 @@ class DataCollector:
 
     async def collect_all_data(self, coins: List[str] = None) -> Dict[str, Dict[str, pd.DataFrame]]:
         """
-        Collect data from Binance for the specified coins.
+        Collect data from Binance and CryptoCompare for the specified coins.
 
         Args:
             coins (List[str]): List of coin names. If None, use the object's configured coins.
 
         Returns:
-            Dict[str, Dict[str, pd.DataFrame]]: Data dictionary with binance data for each coin.
+            Dict[str, Dict[str, pd.DataFrame]]: Data dictionary with binance data (including market cap) for each coin.
         """
         coins_to_process = coins if coins else self.coins
         self.logger.info(f"Starting collection of data for {len(coins_to_process)} coins: {', '.join(coins_to_process)}")
@@ -188,15 +261,40 @@ class DataCollector:
                 base_asset = self.get_base_asset(coin)
                 quote_asset = 'USDT'
 
+                # Fetch Binance data
                 binance_data = await self.fetch_binance_data(base_asset, quote_asset)
                 binance_data = self.process_raw_data(binance_data)
 
-                if not binance_data.empty:
+                # Fetch CryptoCompare market cap data if API key is available
+                market_cap_data = pd.DataFrame()
+                if self.cryptocompare_api_key:
+                    market_cap_data = await self.fetch_cryptocompare_market_cap(coin)
+                    market_cap_data = self.process_raw_data(market_cap_data)
+
+                # Merge market cap data with binance data
+                if not binance_data.empty and not market_cap_data.empty:
+                    # Merge on index (timestamp) - use left join to keep all Binance data
+                    merged_data = binance_data.merge(
+                        market_cap_data, 
+                        left_index=True, 
+                        right_index=True, 
+                        how='left'
+                    )
+                    # Fill missing market cap values using forward fill then backward fill
+                    merged_data['market_cap'] = merged_data['market_cap'].ffill().bfill()
+                    
+                    all_data[coin] = {
+                        'binance': merged_data
+                    }
+                    successful_coins.append(coin)
+                    self.logger.info(f"Successfully collected {len(merged_data)} records for {coin} (with market cap)")
+                elif not binance_data.empty:
+                    # If only binance data available, use it anyway
                     all_data[coin] = {
                         'binance': binance_data
                     }
                     successful_coins.append(coin)
-                    self.logger.info(f"✅ Successfully collected {len(binance_data)} records for {coin}")
+                    self.logger.warning(f"⚠️ Collected {len(binance_data)} records for {coin} (without market cap)")
                 else:
                     failed_coins.append(coin)
                     self.logger.warning(f"❌ No data collected for {coin}")
@@ -208,8 +306,8 @@ class DataCollector:
         # Summary
         self.logger.info("="*60)
         self.logger.info(f"Collection Summary:")
-        self.logger.info(f"  ✅ Successful: {len(successful_coins)}/{len(coins_to_process)} coins")
-        self.logger.info(f"  ❌ Failed: {len(failed_coins)}/{len(coins_to_process)} coins")
+        self.logger.info(f"Successful: {len(successful_coins)}/{len(coins_to_process)} coins")
+        self.logger.info(f"Failed: {len(failed_coins)}/{len(coins_to_process)} coins")
         if successful_coins:
             self.logger.info(f"  Success list: {', '.join(successful_coins)}")
         if failed_coins:
@@ -244,17 +342,17 @@ class DataCollector:
                 try:
                     df.to_csv(filepath)
                     saved_count += 1
-                    self.logger.info(f"✅ Saved {coin} ({len(df)} records) to {filename}")
+                    self.logger.info(f"Saved {coin} ({len(df)} records) to {filename}")
                 except Exception as e:
                     skipped_count += 1
-                    self.logger.error(f"❌ Failed to save data for {coin} from {source}: {str(e)}")
+                    self.logger.error(f"Failed to save data for {coin} from {source}: {str(e)}")
         
         # Summary
         self.logger.info("="*60)
         self.logger.info(f"Save Summary:")
-        self.logger.info(f"  ✅ Successfully saved: {saved_count} files")
-        self.logger.info(f"  ❌ Skipped: {skipped_count} files")
-        self.logger.info(f"  📁 Location: {save_dir.absolute()}")
+        self.logger.info(f"Successfully saved: {saved_count} files")
+        self.logger.info(f"Skipped: {skipped_count} files")
+        self.logger.info(f"Location: {save_dir.absolute()}")
         self.logger.info("="*60)
 
 
