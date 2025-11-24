@@ -179,8 +179,16 @@ class MonitoringDashboard:
             title=f"{coin.capitalize()} - OHLC Price Lines",
             xaxis_title="Date",
             yaxis_title="Price (USDT)",
-            height=400,
-            hovermode='x unified'
+            height=450,
+            hovermode='x unified',
+            legend=dict(
+                orientation='h',
+                yanchor='top',
+                y=-0.15,
+                xanchor='center',
+                x=0.5
+            ),
+            margin=dict(b=100, t=60)
         )
         
         st.plotly_chart(fig_ohlc, use_container_width=True)
@@ -295,7 +303,8 @@ class MonitoringDashboard:
         fig_box.update_layout(
             title=f"{coin.capitalize()} - OHLC Box Plot",
             yaxis_title="Price (USDT)",
-            height=400
+            height=400,
+            margin=dict(b=60, t=60)
         )
         
         st.plotly_chart(fig_box, use_container_width=True)
@@ -1724,7 +1733,7 @@ class MonitoringDashboard:
                     },
                     xaxis_title="Date",
                     yaxis_title="Volume (USD)",
-                    height=500,
+                    height=550,
                     barmode='group',  # Grouped bars - dễ so sánh hơn
                     hovermode='x unified',
                     plot_bgcolor='rgba(0,0,0,0)',
@@ -1733,7 +1742,7 @@ class MonitoringDashboard:
                     xaxis={
                         'gridcolor': 'rgba(102, 126, 234, 0.2)',
                         'showgrid': True,
-                        'tickangle': -45,
+                        'tickangle': 0,
                         'tickformat': '%Y-%m-%d'
                     },
                     yaxis={
@@ -1743,15 +1752,16 @@ class MonitoringDashboard:
                     },
                     legend={
                         'orientation': 'h',
-                        'yanchor': 'bottom',
-                        'y': -0.3,
+                        'yanchor': 'top',
+                        'y': -0.25,
                         'xanchor': 'center',
                         'x': 0.5,
-                        'bgcolor': 'rgba(0,0,0,0.7)',
+                        'bgcolor': 'rgba(0,0,0,0.8)',
                         'bordercolor': 'rgba(102, 126, 234, 0.3)',
-                        'borderwidth': 1
+                        'borderwidth': 1,
+                        'font': {'size': 11}
                     },
-                    margin=dict(b=120)  # Space for legend
+                    margin=dict(b=150, t=80)  # More space for legend and title
                 )
             
                 st.plotly_chart(fig_volume, use_container_width=True)
@@ -2597,6 +2607,19 @@ class MonitoringDashboard:
         
         # Add price trace based on chart type
         if chart_type == "Candlestick":
+            # Create custom hover text for better formatting
+            hover_texts = []
+            for idx in filtered_data.index:
+                row = filtered_data.loc[idx]
+                hover_text = (
+                    f"Date: {idx.strftime('%Y-%m-%d')}<br>"
+                    f"Open: ${row['open']:,.2f}<br>"
+                    f"High: ${row['high']:,.2f}<br>"
+                    f"Low: ${row['low']:,.2f}<br>"
+                    f"Close: ${row['close']:,.2f}"
+                )
+                hover_texts.append(hover_text)
+            
             if show_volume:
                 fig_main.add_trace(
                     go.Candlestick(
@@ -2606,6 +2629,8 @@ class MonitoringDashboard:
                         low=filtered_data['low'],
                         close=filtered_data['close'],
                         name='Price',
+                        text=hover_texts,
+                        hoverinfo='text',
                         increasing_line_color='#00ff88',
                         decreasing_line_color='#ff6b6b'
                     ),
@@ -2620,6 +2645,8 @@ class MonitoringDashboard:
                         low=filtered_data['low'],
                         close=filtered_data['close'],
                         name='Price',
+                        text=hover_texts,
+                        hoverinfo='text',
                         increasing_line_color='#00ff88',
                         decreasing_line_color='#ff6b6b'
                     )
@@ -3223,7 +3250,18 @@ class MonitoringDashboard:
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font={'color': 'white'},
-                showlegend=True
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="top",
+                    y=-0.15,
+                    xanchor="center",
+                    x=0.5,
+                    bgcolor='rgba(0,0,0,0.8)',
+                    bordercolor='rgba(102, 126, 234, 0.3)',
+                    borderwidth=1
+                ),
+                margin=dict(b=100)
             )
             
             fig_rsi.update_xaxes(gridcolor='rgba(102, 126, 234, 0.2)')
@@ -3317,7 +3355,18 @@ class MonitoringDashboard:
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font={'color': 'white'},
-                showlegend=True
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="top",
+                    y=-0.12,
+                    xanchor="center",
+                    x=0.5,
+                    bgcolor='rgba(0,0,0,0.8)',
+                    bordercolor='rgba(102, 126, 234, 0.3)',
+                    borderwidth=1
+                ),
+                margin=dict(b=100)
             )
             
             fig_macd.update_xaxes(gridcolor='rgba(102, 126, 234, 0.2)')
@@ -3409,7 +3458,18 @@ class MonitoringDashboard:
                     'font': {'size': 18, 'color': 'white'}
                 },
                 xaxis={'gridcolor': 'rgba(102, 126, 234, 0.2)'},
-                yaxis={'gridcolor': 'rgba(102, 126, 234, 0.2)', 'title': 'Price (USD)'}
+                yaxis={'gridcolor': 'rgba(102, 126, 234, 0.2)', 'title': 'Price (USD)'},
+                legend=dict(
+                    orientation="h",
+                    yanchor="top",
+                    y=-0.15,
+                    xanchor="center",
+                    x=0.5,
+                    bgcolor='rgba(0,0,0,0.8)',
+                    bordercolor='rgba(102, 126, 234, 0.3)',
+                    borderwidth=1
+                ),
+                margin=dict(b=100, t=80)
             )
             
             st.plotly_chart(fig_bb, use_container_width=True)
@@ -4010,12 +4070,16 @@ class MonitoringDashboard:
                 xaxis_title="Date",
                 yaxis_title="Normalized Price Index (Base 100)",
                 legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1
-                )
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02,
+                    bgcolor='rgba(0,0,0,0.8)',
+                    bordercolor='rgba(102, 126, 234, 0.3)',
+                    borderwidth=1
+                ),
+                margin=dict(r=120)
             )
             
             fig_norm.update_xaxes(gridcolor='rgba(102, 126, 234, 0.2)')
@@ -4076,12 +4140,16 @@ class MonitoringDashboard:
                 xaxis_title="Date",
                 yaxis_title="Price (USD)",
                 legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1
-                )
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02,
+                    bgcolor='rgba(0,0,0,0.8)',
+                    bordercolor='rgba(102, 126, 234, 0.3)',
+                    borderwidth=1
+                ),
+                margin=dict(r=120)
             )
             
             fig_abs.update_xaxes(gridcolor='rgba(102, 126, 234, 0.2)')
@@ -4121,12 +4189,16 @@ class MonitoringDashboard:
                 xaxis_title="Date",
                 yaxis_title="Daily Change (%)",
                 legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1
-                )
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02,
+                    bgcolor='rgba(0,0,0,0.8)',
+                    bordercolor='rgba(102, 126, 234, 0.3)',
+                    borderwidth=1
+                ),
+                margin=dict(r=120)
             )
             
             fig_changes.update_xaxes(gridcolor='rgba(102, 126, 234, 0.2)')
@@ -4158,7 +4230,7 @@ class MonitoringDashboard:
                     ))
             
             fig_vol.update_layout(
-                height=400,
+                height=450,
                 barmode='group',
                 hovermode='x unified',
                 plot_bgcolor='rgba(0,0,0,0)',
@@ -4166,7 +4238,18 @@ class MonitoringDashboard:
                 font={'color': 'white'},
                 xaxis_title="Date",
                 yaxis_title="Volume",
-                showlegend=True
+                showlegend=True,
+                legend=dict(
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02,
+                    bgcolor='rgba(0,0,0,0.8)',
+                    bordercolor='rgba(102, 126, 234, 0.3)',
+                    borderwidth=1
+                ),
+                margin=dict(r=100, b=60)
             )
             
             fig_vol.update_xaxes(gridcolor='rgba(102, 126, 234, 0.2)')
