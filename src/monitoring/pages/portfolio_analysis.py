@@ -1,10 +1,11 @@
 # src/monitoring/pages/portfolio_analysis.py
 
 """
-Portfolio Analysis Page
+Portfolio Analysis Page - Trang phân tích danh mục đầu tư
 """
 
 import streamlit as st
+import pandas as pd
 import plotly.graph_objects as go
 import sys
 from pathlib import Path
@@ -22,28 +23,56 @@ from src.analysis.portfolio_engine import (
 
 
 def render_portfolio_analysis_page():
-    """Render portfolio analysis page."""
-    st.title("🧺 Portfolio Analysis")
+    """Render trang phân tích danh mục đầu tư."""
+    st.title("🧺 Phân Tích Danh Mục Đầu Tư")
     
+    # Page introduction
     st.markdown("""
-        Analyze different portfolio construction strategies and their performance.
-    """)
+        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;'>
+            <h3 style='color: white; margin: 0;'>📊 Xây Dựng & Kiểm Thử Danh Mục</h3>
+            <p style='color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;'>
+                Phân tích các chiến lược xây dựng danh mục đầu tư khác nhau và đánh giá hiệu suất lịch sử.
+                So sánh giữa Equal Weight (phân bổ đều) và Risk Parity (phân bổ theo rủi ro).
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Load data
-    with st.spinner("Running portfolio backtests..."):
+    with st.spinner("Đang chạy backtest danh mục..."):
         data_dict = load_all_coins_data(data_dir="data/raw/train")
     
     if not data_dict:
-        st.error("No data available")
+        st.error("❌ Không có dữ liệu")
         return
     
     # Strategy Comparison
-    st.subheader("📊 Strategy Comparison")
+    st.subheader("📊 So Sánh Chiến Lược")
+    
+    st.markdown("""
+        <div style='background: rgba(102, 126, 234, 0.1); padding: 1rem; border-radius: 8px; 
+                    border-left: 4px solid #667eea; margin-bottom: 1rem;'>
+            <h4 style='margin: 0 0 0.5rem 0; color: #667eea;'>📊 Bảng Này Hiển Thị Gì?</h4>
+            <p style='margin: 0; color: #ccc;'>
+                So sánh hiệu suất của 2 chiến lược phân bổ danh mục với vốn ban đầu $10,000. 
+                Mỗi chiến lược có cách phân bổ tỷ trọng khác nhau giữa các coin.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
     
     comparison_df = compare_portfolio_strategies(data_dict, initial_capital=10000)
     
+    # Rename index to Vietnamese based on actual strategies in the dataframe
+    strategy_names_vi = {
+        'Equal Weight': 'Equal Weight (Phân bổ đều)',
+        'Risk Parity': 'Risk Parity (Theo rủi ro)',
+        'Vol Targeting': 'Vol Targeting (Mục tiêu biến động)'
+    }
+    comparison_df_display = comparison_df.copy()
+    comparison_df_display.index = [strategy_names_vi.get(idx, idx) for idx in comparison_df.index]
+    
     st.dataframe(
-        comparison_df.style.format({
+        comparison_df_display.style.format({
             'total_return': '{:.2f}%',
             'cagr': '{:.2f}%',
             'sharpe_ratio': '{:.2f}',
@@ -54,16 +83,36 @@ def render_portfolio_analysis_page():
         use_container_width=True
     )
     
+    # Strategy Analysis
+    best_strategy_idx = comparison_df['sharpe_ratio'].idxmax()
+    best_strategy = "Equal Weight" if best_strategy_idx == "equal_weight" else "Risk Parity"
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.info("""
+            **📌 Equal Weight (Phân bổ đều)**  
+            Phân bổ vốn đều cho tất cả coin (mỗi coin = 1/N).  
+            Đơn giản, dễ hiểu, không cần dự đoán tương lai.
+        """)
+    with col2:
+        st.info("""
+            **📌 Risk Parity (Theo rủi ro)**  
+            Phân bổ sao cho mỗi coin đóng góp rủi ro như nhau.  
+            Coin biến động ít được phân bổ nhiều hơn.
+        """)
+    
     # Individual Strategy Analysis
     st.markdown("---")
-    st.subheader("🔍 Detailed Strategy Analysis")
+    st.subheader("🔍 Phân Tích Chi Tiết Chiến Lược")
     
     strategy = st.selectbox(
-        "Select Strategy",
-        ["Equal Weight", "Risk Parity"]
+        "Chọn Chiến Lược",
+        ["Equal Weight (Phân bổ đều)", "Risk Parity (Theo rủi ro)"]
     )
     
-    if strategy == "Equal Weight":
+    strategy_key = "Equal Weight" if "Equal" in strategy else "Risk Parity"
+    
+    if strategy_key == "Equal Weight":
         weights = {coin: 1.0 / len(data_dict) for coin in data_dict.keys()}
     else:  # Risk Parity
         weights = risk_parity_portfolio(data_dict)
@@ -73,20 +122,34 @@ def render_portfolio_analysis_page():
     
     if not portfolio_df.empty:
         # Equity Curve
+        st.markdown("""
+            <div style='background: rgba(102, 126, 234, 0.1); padding: 1rem; border-radius: 8px; 
+                        border-left: 4px solid #667eea; margin-bottom: 1rem;'>
+                <h4 style='margin: 0 0 0.5rem 0; color: #667eea;'>📈 Đường Cong Vốn (Equity Curve)</h4>
+                <p style='margin: 0; color: #ccc;'>
+                    Biểu đồ cho thấy giá trị danh mục theo thời gian nếu bạn đầu tư $10,000 từ đầu.
+                    Đường đi lên = danh mục sinh lời, đường đi xuống = lỗ.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        
         fig = go.Figure()
         
         fig.add_trace(go.Scatter(
             x=portfolio_df.index,
             y=portfolio_df['portfolio_value'],
-            name='Portfolio Value',
-            line=dict(color='#667eea', width=2)
+            name='Giá Trị Danh Mục',
+            line=dict(color='#667eea', width=2),
+            fill='tozeroy',
+            fillcolor='rgba(102, 126, 234, 0.2)'
         ))
         
         fig.update_layout(
-            title=f"{strategy} Portfolio Equity Curve",
-            xaxis_title="Date",
-            yaxis_title="Portfolio Value ($)",
-            height=400
+            title=f"Đường Cong Vốn - {strategy}",
+            xaxis_title="Ngày",
+            yaxis_title="Giá Trị Danh Mục ($)",
+            height=400,
+            template="plotly_dark"
         )
         
         st.plotly_chart(fig, use_container_width=True)
@@ -97,37 +160,98 @@ def render_portfolio_analysis_page():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("Total Return", f"{metrics['total_return']:.2f}%")
+            st.metric("📈 Tổng Lợi Nhuận", f"{metrics['total_return']:.2f}%")
         
         with col2:
-            st.metric("Sharpe Ratio", f"{metrics['sharpe_ratio']:.2f}")
+            st.metric("⚖️ Sharpe Ratio", f"{metrics['sharpe_ratio']:.2f}")
         
         with col3:
-            st.metric("Max Drawdown", f"{metrics['max_drawdown']:.2f}%")
+            st.metric("📉 Max Drawdown", f"{metrics['max_drawdown']:.2f}%")
         
         with col4:
-            st.metric("CAGR", f"{metrics['cagr']:.2f}%")
+            st.metric("📊 CAGR", f"{metrics['cagr']:.2f}%")
         
         # Weights
         st.markdown("---")
-        st.subheader("⚖️ Portfolio Weights")
+        st.subheader("⚖️ Tỷ Trọng Danh Mục")
         
-        weights_df = pd.DataFrame.from_dict(weights, orient='index', columns=['Weight'])
-        weights_df['Weight'] = weights_df['Weight'] * 100
-        weights_df = weights_df.sort_values('Weight', ascending=False)
+        st.markdown("""
+            <div style='background: rgba(102, 126, 234, 0.1); padding: 1rem; border-radius: 8px; 
+                        border-left: 4px solid #667eea; margin-bottom: 1rem;'>
+                <p style='margin: 0; color: #ccc;'>
+                    Bảng dưới hiển thị phần trăm vốn phân bổ cho mỗi coin theo chiến lược đã chọn.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
         
-        st.dataframe(
-            weights_df.style.format({'Weight': '{:.2f}%'}),
-            use_container_width=True
-        )
+        weights_df = pd.DataFrame.from_dict(weights, orient='index', columns=['Tỷ Trọng'])
+        weights_df['Tỷ Trọng'] = weights_df['Tỷ Trọng'] * 100
+        weights_df = weights_df.sort_values('Tỷ Trọng', ascending=False)
+        weights_df.index = weights_df.index.str.upper()
+        weights_df.index.name = 'Coin'
+        
+        # Display table and pie chart with better layout
+        col1, col2 = st.columns([1, 1.5])
+        
+        with col1:
+            st.markdown("**📋 Bảng Tỷ Trọng**")
+            st.dataframe(
+                weights_df.style.format({'Tỷ Trọng': '{:.2f}%'}),
+                use_container_width=True,
+                height=350
+            )
+        
+        with col2:
+            # Pie chart - bigger size
+            fig_pie = go.Figure(data=[go.Pie(
+                labels=weights_df.index,
+                values=weights_df['Tỷ Trọng'],
+                hole=0.4,
+                textinfo='percent+label',
+                textposition='outside',
+                marker=dict(colors=['#667eea', '#764ba2', '#00d4aa', '#ffc107', '#ff6b6b', '#17a2b8', '#28a745', '#fd7e14', '#6f42c1'])
+            )])
+            fig_pie.update_layout(
+                title=dict(text="📊 Phân Bổ Danh Mục", font=dict(size=18)),
+                height=450,
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.2,
+                    xanchor="center",
+                    x=0.5
+                ),
+                margin=dict(t=60, b=80, l=20, r=20)
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
     
     # Recommendations
     st.markdown("---")
-    st.subheader("💡 Portfolio Recommendations")
-    
-    best_strategy = comparison_df['sharpe_ratio'].idxmax()
+    st.subheader("💡 Khuyến Nghị Danh Mục")
     
     st.success(f"""
-        **Recommended Strategy**: {best_strategy}  
-        Based on risk-adjusted returns (Sharpe Ratio), {best_strategy} shows the best performance.
+        **🏆 Chiến Lược Được Khuyến Nghị: {best_strategy}**  
+        
+        Dựa trên lợi nhuận điều chỉnh rủi ro (Sharpe Ratio), chiến lược **{best_strategy}** 
+        cho kết quả tốt nhất trên dữ liệu lịch sử.
+        
+        **Lưu ý**: Kết quả quá khứ không đảm bảo kết quả tương lai. 
+        Hãy đa dạng hóa và quản lý rủi ro phù hợp với khẩu vị đầu tư của bạn.
     """)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.info("""
+            **📊 Khi Nào Dùng Equal Weight?**
+            - Không chắc chắn về coin nào sẽ tốt hơn
+            - Muốn đơn giản, dễ tái cân bằng
+            - Tin tưởng vào tất cả coin trong danh sách
+        """)
+    with col2:
+        st.info("""
+            **📊 Khi Nào Dùng Risk Parity?**
+            - Muốn kiểm soát rủi ro tốt hơn
+            - Ưu tiên ổn định hơn lợi nhuận tối đa
+            - Tránh coin biến động cao chiếm quá nhiều rủi ro
+        """)

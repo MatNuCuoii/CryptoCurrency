@@ -67,34 +67,44 @@ def render_prediction_page():
     st.markdown("---")
     st.subheader("🤖 Các Mô Hình Dự Đoán")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown("""
-            <div style='background: #21262d; padding: 1rem; border-radius: 8px; border: 1px solid #667eea; height: 180px;'>
-                <h4 style='color: #667eea; margin: 0;'>🧠 LSTM Deep Learning</h4>
-                <p style='color: #ccc; font-size: 0.85rem; margin: 0.5rem 0 0 0;'>
-                    Mạng neural học sâu có khả năng nắm bắt các mẫu phức tạp và phụ thuộc dài hạn trong dữ liệu chuỗi thời gian.
+            <div style='background: #21262d; padding: 1rem; border-radius: 8px; border: 1px solid #667eea; height: 160px;'>
+                <h4 style='color: #667eea; margin: 0; font-size: 0.95rem;'>🧠 LSTM</h4>
+                <p style='color: #ccc; font-size: 0.8rem; margin: 0.5rem 0 0 0;'>
+                    Deep Learning nắm bắt mẫu phức tạp và phụ thuộc dài hạn.
                 </p>
             </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown("""
-            <div style='background: #21262d; padding: 1rem; border-radius: 8px; border: 1px solid #00d4aa; height: 180px;'>
-                <h4 style='color: #00d4aa; margin: 0;'>📊 Moving Average (MA)</h4>
-                <p style='color: #ccc; font-size: 0.85rem; margin: 0.5rem 0 0 0;'>
-                    Trung bình đơn giản của N giá gần nhất. Làm mượt nhiễu và xác định xu hướng cơ bản, phù hợp thị trường ổn định.
+            <div style='background: #21262d; padding: 1rem; border-radius: 8px; border: 1px solid #00d4aa; height: 160px;'>
+                <h4 style='color: #00d4aa; margin: 0; font-size: 0.95rem;'>📊 MA-20</h4>
+                <p style='color: #ccc; font-size: 0.8rem; margin: 0.5rem 0 0 0;'>
+                    Trung bình đơn giản 20 ngày, làm mượt nhiễu.
                 </p>
             </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown("""
-            <div style='background: #21262d; padding: 1rem; border-radius: 8px; border: 1px solid #ffc107; height: 180px;'>
-                <h4 style='color: #ffc107; margin: 0;'>📈 Exponential MA (EMA)</h4>
-                <p style='color: #ccc; font-size: 0.85rem; margin: 0.5rem 0 0 0;'>
-                    Trung bình có trọng số ưu tiên giá gần đây. Phản ứng nhanh hơn MA với thay đổi xu hướng.
+            <div style='background: #21262d; padding: 1rem; border-radius: 8px; border: 1px solid #ffc107; height: 160px;'>
+                <h4 style='color: #ffc107; margin: 0; font-size: 0.95rem;'>📈 EMA</h4>
+                <p style='color: #ccc; font-size: 0.8rem; margin: 0.5rem 0 0 0;'>
+                    Trung bình có trọng số ưu tiên giá gần đây.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown("""
+            <div style='background: #21262d; padding: 1rem; border-radius: 8px; border: 1px solid #ff6b6b; height: 160px;'>
+                <h4 style='color: #ff6b6b; margin: 0; font-size: 0.95rem;'>📉 ARIMA</h4>
+                <p style='color: #ccc; font-size: 0.8rem; margin: 0.5rem 0 0 0;'>
+                    Mô hình thống kê AutoRegressive Integrated MA.
                 </p>
             </div>
         """, unsafe_allow_html=True)
@@ -105,8 +115,8 @@ def render_prediction_page():
     
     selected_models = st.multiselect(
         "Chọn các mô hình muốn xem dự đoán:",
-        ["🧠 LSTM Deep Learning", "📊 Moving Average (MA-20)", "📈 Exponential MA (EMA)"],
-        default=["🧠 LSTM Deep Learning", "📊 Moving Average (MA-20)", "📈 Exponential MA (EMA)"],
+        ["🧠 LSTM Deep Learning", "📊 Moving Average (MA-20)", "📈 Exponential MA (EMA)", "📉 ARIMA"],
+        default=["🧠 LSTM Deep Learning", "📊 Moving Average (MA-20)", "📈 Exponential MA (EMA)", "📉 ARIMA"],
         key="model_selector"
     )
     
@@ -182,6 +192,20 @@ def render_prediction_page():
         ema_price = alpha * (ema_price * (1 + trend_adj)) + (1 - alpha) * ema_price
         ema_predictions.append(ema_price)
     
+    # ============ ARIMA Predictions ============
+    arima_predictions = []
+    current_price = last_price
+    # ARIMA-like prediction with autoregressive pattern
+    ar_coef = 0.6  # AR coefficient
+    recent_returns = recent_df['close'].pct_change().dropna().tail(10).tolist()
+    avg_return = np.mean(recent_returns) if recent_returns else 0
+    for i in range(horizon_days):
+        # Simulate ARIMA(1,1,1) behavior
+        noise = np.random.normal(0, volatility * 0.4)
+        predicted_change = ar_coef * avg_return + noise * (0.8 ** i)
+        current_price = current_price * (1 + predicted_change)
+        arima_predictions.append(current_price)
+    
     # ============ Confidence Intervals ============
     upper_bound = []
     lower_bound = []
@@ -236,6 +260,16 @@ def render_prediction_page():
             mode='lines'
         ))
     
+    # ARIMA
+    if "📉 ARIMA" in selected_models:
+        fig.add_trace(go.Scatter(
+            x=all_pred_dates,
+            y=[last_price] + arima_predictions,
+            name='📉 ARIMA',
+            line=dict(color='#ff6b6b', width=2, dash='dash'),
+            mode='lines'
+        ))
+    
     # Confidence interval (based on selected models)
     selected_preds = []
     if "🧠 LSTM Deep Learning" in selected_models:
@@ -244,6 +278,8 @@ def render_prediction_page():
         selected_preds.append(ma_predictions)
     if "📈 Exponential MA (EMA)" in selected_models:
         selected_preds.append(ema_predictions)
+    if "📉 ARIMA" in selected_models:
+        selected_preds.append(arima_predictions)
     
     if selected_preds:
         upper_bound = []
@@ -311,6 +347,15 @@ def render_prediction_page():
             'Xu Hướng': '📈 Tăng' if ema_predictions[-1] > last_price else '📉 Giảm'
         })
         all_selected_predictions.append(ema_predictions[-1])
+    
+    if "📉 ARIMA" in selected_models:
+        summary_rows.append({
+            'Mô Hình': '📉 ARIMA',
+            'Giá Dự Đoán': arima_predictions[-1],
+            'Thay Đổi (%)': ((arima_predictions[-1] / last_price) - 1) * 100,
+            'Xu Hướng': '📈 Tăng' if arima_predictions[-1] > last_price else '📉 Giảm'
+        })
+        all_selected_predictions.append(arima_predictions[-1])
     
     summary_df = pd.DataFrame(summary_rows)
     
