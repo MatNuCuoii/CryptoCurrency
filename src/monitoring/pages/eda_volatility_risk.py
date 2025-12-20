@@ -21,15 +21,37 @@ from src.analysis.financial_metrics import (
 )
 
 
-def render_volatility_risk_page(coin: str):
+def render_volatility_risk_page():
     """Render trang phân tích biến động và rủi ro."""
-    if not coin:
-        st.warning("⚠️ Vui lòng chọn coin từ thanh bên")
-        return
+    st.title("📉 Phân Tích Biến Động & Rủi Ro")
     
-    st.title(f"📉 Phân Tích Biến Động & Rủi Ro - {coin.upper()}")
+    # Coin selector inside page
+    st.markdown("""
+        <div style='background: rgba(102, 126, 234, 0.1); padding: 1rem; border-radius: 8px; 
+                    border-left: 3px solid #667eea; margin-bottom: 1rem;'>
+            <b>📖 Giới thiệu:</b> Trang này phân tích mức độ biến động, rủi ro sụt giảm (drawdown), 
+            và các chỉ số rủi ro chuyên nghiệp như VaR và CVaR cho coin bạn chọn.
+        </div>
+    """, unsafe_allow_html=True)
     
-    # Page introduction
+    # Coin selector
+    st.subheader("⚙️ Chọn Coin")
+    
+    coins = [
+        "bitcoin", "ethereum", "litecoin", "binancecoin",
+        "cardano", "solana", "pancakeswap", "axieinfinity", "thesandbox"
+    ]
+    
+    coin = st.selectbox(
+        "Chọn coin để phân tích:",
+        coins,
+        format_func=lambda x: x.upper(),
+        key="volatility_coin_selector"
+    )
+    
+    st.markdown("---")
+    
+    # Page header with selected coin
     st.markdown(f"""
         <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                     padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;'>

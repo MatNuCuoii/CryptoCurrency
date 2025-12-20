@@ -28,7 +28,8 @@ def render_market_overview_page():
     st.markdown("""
         <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                     padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;'>
-            <p style='color: rgba(255,255,255,0.9); margin: 0;'>
+            <h3 style='color: white; margin: 0;'>🌍 Phân Tích Tổng Quan Thị Trường</h3>
+            <p style='color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;'>
                 Cái nhìn toàn diện về sức khỏe thị trường crypto và xếp hạng các đồng coin theo nhiều tiêu chí.
             </p>
         </div>

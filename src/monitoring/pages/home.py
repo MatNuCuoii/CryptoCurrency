@@ -186,6 +186,20 @@ def render_home_page():
                 </p>
             </div>
         """, unsafe_allow_html=True)
+        
+        # Social Sentiment
+        st.markdown("""
+            <div class='feature-card'>
+                <h4>📊 Phân Tích Tâm Lý Thị Trường</h4>
+                <p>
+                    <strong>Mô tả:</strong> Phân tích Fear & Greed Index - chỉ số đo lường 
+                    tâm lý thị trường crypto. Bao gồm phân tích tương quan theo độ trễ, 
+                    event study cho extreme sentiment, và so sánh với lợi nhuận.<br><br>
+                    <strong>Phù hợp cho:</strong> Đánh giá rủi ro dựa trên sentiment và 
+                    hỗ trợ quyết định đầu tư.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     

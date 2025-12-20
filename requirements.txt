@@ -17,7 +17,7 @@ openai>=1.0.0
 chromadb>=0.4.0
 langchain>=0.1.17
 langchain-openai>=0.1.6
-
+nltk==3.9.2
 # New dependencies for model enhancement
 pmdarima>=2.0.0
 statsmodels>=0.14.0

@@ -16,6 +16,7 @@ from .portfolio_analysis import render_portfolio_analysis_page
 from .investment_insights import render_investment_insights_page
 from .prediction import render_prediction_page
 from .compare_models import render_compare_models_page
+from .sentiment_analysis import render_sentiment_analysis_page
 
 __all__ = [
     'render_home_page',
@@ -29,5 +30,6 @@ __all__ = [
     'render_investment_insights_page',
     'render_prediction_page',
     'render_compare_models_page',
+    'render_sentiment_analysis_page',
 ]
 

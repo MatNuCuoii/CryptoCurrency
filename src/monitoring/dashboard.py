@@ -24,6 +24,7 @@ from src.monitoring.pages import (
     render_investment_insights_page,
     render_prediction_page,
     render_compare_models_page,
+    render_sentiment_analysis_page,
 )
 
 
@@ -76,6 +77,15 @@ def inject_custom_css():
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
+        
+        /* ============ Gradient Banner Text Fix ============ */
+        div[style*="linear-gradient"] h3,
+        div[style*="linear-gradient"] p {
+            color: white !important;
+        }
+        div[style*="linear-gradient"] p {
+            color: rgba(255,255,255,0.9) !important;
+        }
         
         /* ============ Sidebar Styling ============ */
         [data-testid="stSidebar"] {
@@ -381,16 +391,17 @@ def render_sidebar():
                 "🧺 Phân Tích Danh Mục",
                 "🧠 Khuyến Nghị Đầu Tư",
                 "🔮 Dự Đoán Giá",
-                "⚖️ So Sánh Mô Hình"
+                "⚖️ So Sánh Mô Hình",
+                "📊 Phân Tích Tâm Lý Thị Trường"
             ],
             label_visibility="collapsed"
         )
         
         st.markdown("---")
         
-        # Coin selector (for pages that need it)
+        # Coin selector (only for Price & Volume page)
         selected_coin = None
-        if page in ["📈 Phân Tích Giá & Khối Lượng", "📉 Phân Tích Biến Động & Rủi Ro"]:
+        if page == "📈 Phân Tích Giá & Khối Lượng":
             st.markdown("<p class='nav-section-title'>💰 CHỌN COIN</p>", unsafe_allow_html=True)
             coins = [
                 "bitcoin", "ethereum", "litecoin", "binancecoin",
@@ -434,7 +445,7 @@ def main():
         render_price_volume_page(selected_coin)
     
     elif page == "📉 Phân Tích Biến Động & Rủi Ro":
-        render_volatility_risk_page(selected_coin)
+        render_volatility_risk_page()  # No coin param - selector inside page
     
     elif page == "🔗 Phân Tích Tương Quan":
         render_correlation_page()
@@ -456,6 +467,9 @@ def main():
     
     elif page == "⚖️ So Sánh Mô Hình":
         render_compare_models_page()
+    
+    elif page == "📊 Phân Tích Tâm Lý Thị Trường":
+        render_sentiment_analysis_page()
     
     # Footer
     st.markdown("""
