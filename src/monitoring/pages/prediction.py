@@ -145,16 +145,18 @@ def render_prediction_page():
                     border-left: 4px solid #667eea; margin-bottom: 1rem;'>
             <h4 style='margin: 0 0 0.5rem 0; color: #667eea;'>📊 Biểu Đồ Này Hiển Thị Gì?</h4>
             <p style='margin: 0; color: #ccc;'>
-                Biểu đồ so sánh dự đoán từ <strong>3 mô hình</strong> trên cùng một đồ thị:
+                Biểu đồ so sánh dự đoán từ <strong>5 mô hình</strong> trên cùng một đồ thị:
             </p>
             <ul style='margin: 0.5rem 0 0 0; color: #ccc; padding-left: 1.5rem;'>
-                <li><span style='color: #667eea;'>■</span> <strong>LSTM</strong>: Đường tím - Mô hình deep learning</li>
+                <li><span style='color: #667eea;'>■</span> <strong>LSTM</strong>: Đường tím - Deep Learning nắm bắt xu hướng dài hạn</li>
                 <li><span style='color: #00d4aa;'>■</span> <strong>MA(20)</strong>: Đường xanh lá - Moving Average 20 ngày</li>
                 <li><span style='color: #ffc107;'>■</span> <strong>EMA</strong>: Đường vàng - Exponential Moving Average</li>
+                <li><span style='color: #00bcd4;'>■</span> <strong>N-BEATS</strong>: Đường xanh dương - Neural Basis Expansion</li>
+                <li><span style='color: #ff6b6b;'>■</span> <strong>ARIMA</strong>: Đường đỏ - AutoRegressive Integrated MA</li>
             </ul>
             <h4 style='margin: 1rem 0 0.5rem 0; color: #667eea;'>💡 Cách Đọc</h4>
             <p style='margin: 0; color: #ccc;'>
-                Khi cả 3 mô hình hội tụ (dự đoán giống nhau), tín hiệu đáng tin cậy hơn. 
+                Khi nhiều mô hình hội tụ (dự đoán giống nhau), tín hiệu đáng tin cậy hơn. 
                 Khi phân kỳ, cần cẩn trọng và xem xét thêm các yếu tố khác.
             </p>
         </div>
