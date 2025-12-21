@@ -1,599 +1,483 @@
 # src/monitoring/dashboard.py
 
+"""
+Main dashboard entry point - Professional Crypto Analytics Dashboard.
+Bảng điều khiển phân tích tiền điện tử chuyên nghiệp.
+"""
+
 import streamlit as st
-import pandas as pd
-import json
-import logging
+import sys
 from pathlib import Path
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from src.visualization.visualizer import CryptoVisualizer
 
-class MonitoringDashboard:
-    """
-    Comprehensive Streamlit dashboard for cryptocurrency prediction monitoring.
-    Features:
-    - Historical Data visualization from raw/train
-    - Training Results and metrics
-    - Future Predictions visualization
-    """
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-    def __init__(self, data_dir: str = "data/raw/train", results_dir: str = "results"):
-        st.set_page_config(
-            page_title="Crypto Prediction Monitor", 
-            page_icon="📈", 
-            layout="wide",
-            initial_sidebar_state="expanded"
-        )
-        self.logger = self._setup_logger()
-        self.visualizer = CryptoVisualizer()
-        self.data_dir = Path(data_dir)
-        self.results_dir = Path(results_dir)
-        self.coins = [
-            "bitcoin", 
-            "ethereum", 
-            "litecoin",
-            "binancecoin",
-            "cardano",
-            "solana",
-            "pancakeswap",
-            "axieinfinity",
-            "thesandbox"
-        ]
+from src.monitoring.pages import (
+    render_home_page,
+    render_market_overview_page,
+    render_price_volume_page,
+    render_volatility_risk_page,
+    render_correlation_page,
+    render_quant_metrics_page,
+    render_factor_analysis_page,
+    render_portfolio_analysis_page,
+    render_investment_insights_page,
+    render_prediction_page,
+    render_compare_models_page,
+    render_sentiment_analysis_page,
+)
 
-    def _setup_logger(self):
-        logger = logging.getLogger("MonitoringDashboard")
-        logger.setLevel(logging.INFO)
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-        return logger
 
-    def load_historical_data(self, coin: str) -> pd.DataFrame:
-        """Load historical data from raw/train directory."""
-        csv_files = list(self.data_dir.glob(f"{coin}_binance_*.csv"))
-        if not csv_files:
-            self.logger.warning(f"No historical data found for {coin}")
-            return pd.DataFrame()
+def configure_page():
+    """Configure Streamlit page settings."""
+    st.set_page_config(
+        page_title="Phân Tích Crypto - Deep Learning",
+        page_icon="🚀",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+
+
+def inject_custom_css():
+    """Inject professional dark theme CSS styling."""
+    st.markdown("""
+        <style>
+        /* ============ Import Google Font ============ */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
-        # Load the most recent file
-        latest_file = sorted(csv_files)[-1]
-        try:
-            df = pd.read_csv(latest_file)
-            if 'timestamp' in df.columns:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-                df.set_index('timestamp', inplace=True)
-            return df
-        except Exception as e:
-            self.logger.error(f"Error loading {latest_file}: {e}")
-            return pd.DataFrame()
-
-    def load_results(self, coin: str) -> dict:
-        """Load training results for a specific coin."""
-        result_files = list(self.results_dir.glob(f"{coin}_results_*.json"))
-        if not result_files:
-            return {}
+        /* ============ Hide default Streamlit multipage nav ============ */
+        [data-testid="stSidebarNav"] {
+            display: none !important;
+        }
         
-        latest_file = sorted(result_files)[-1]
-        try:
-            with open(latest_file, 'r') as f:
-                return json.load(f)
-        except Exception as e:
-            self.logger.error(f"Error loading results: {e}")
-            return {}
-
-    def load_predictions(self, coin: str) -> dict:
-        """Load future predictions for a specific coin."""
-        pred_file = self.results_dir / "predictions" / f"{coin}_future_predictions.json"
-        if not pred_file.exists():
-            return {}
+        /* ============ Root Variables ============ */
+        :root {
+            --bg-primary: #0e1117;
+            --bg-secondary: #1a1d26;
+            --bg-card: #21262d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success: #00d4aa;
+            --warning: #ffc107;
+            --danger: #ff6b6b;
+            --border-color: #30363d;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
         
-        try:
-            with open(pred_file, 'r') as f:
-                return json.load(f)
-        except Exception as e:
-            self.logger.error(f"Error loading predictions: {e}")
-            return {}
-
-    def plot_historical_data(self, df: pd.DataFrame, coin: str):
-        """Plot historical OHLCV data."""
-        if df.empty:
-            st.warning(f"No historical data available for {coin}")
-            return
-
-        # 1. Main Candlestick chart with Volume
-        st.subheader("📊 Price & Volume Overview")
-        fig_main = make_subplots(
-            rows=2, cols=1,
-            shared_xaxes=True,
-            vertical_spacing=0.1,
-            subplot_titles=(f'{coin.capitalize()} Price (OHLC)', 'Volume'),
-            row_heights=[0.7, 0.3]
-        )
-
-        # Candlestick
-        fig_main.add_trace(
-            go.Candlestick(
-                x=df.index,
-                open=df['open'],
-                high=df['high'],
-                low=df['low'],
-                close=df['close'],
-                name='OHLC'
-            ),
-            row=1, col=1
-        )
-
-        # Volume bars
-        colors = ['red' if df['close'].iloc[i] < df['open'].iloc[i] else 'green' 
-                  for i in range(len(df))]
-        fig_main.add_trace(
-            go.Bar(x=df.index, y=df['volume'], name='Volume', marker_color=colors),
-            row=2, col=1
-        )
-
-        fig_main.update_layout(
-            height=600,
-            showlegend=True,
-            xaxis_rangeslider_visible=False
-        )
+        /* ============ Global Styles ============ */
+        .stApp {
+            background: var(--bg-primary);
+            font-family: 'Inter', sans-serif;
+        }
         
-        st.plotly_chart(fig_main, use_container_width=True)
-
-        # 2. Individual OHLC Line Charts
-        st.subheader("📈 OHLC Trends")
-        fig_ohlc = go.Figure()
+        /* Hide Streamlit branding */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
         
-        fig_ohlc.add_trace(go.Scatter(
-            x=df.index, y=df['open'], 
-            name='Open', mode='lines',
-            line=dict(color='blue', width=1)
-        ))
-        fig_ohlc.add_trace(go.Scatter(
-            x=df.index, y=df['high'], 
-            name='High', mode='lines',
-            line=dict(color='green', width=1)
-        ))
-        fig_ohlc.add_trace(go.Scatter(
-            x=df.index, y=df['low'], 
-            name='Low', mode='lines',
-            line=dict(color='red', width=1)
-        ))
-        fig_ohlc.add_trace(go.Scatter(
-            x=df.index, y=df['close'], 
-            name='Close', mode='lines',
-            line=dict(color='black', width=2)
-        ))
+        /* ============ Gradient Banner Text Fix ============ */
+        div[style*="linear-gradient"] h3,
+        div[style*="linear-gradient"] p {
+            color: white !important;
+        }
+        div[style*="linear-gradient"] p {
+            color: rgba(255,255,255,0.9) !important;
+        }
         
-        fig_ohlc.update_layout(
-            title=f"{coin.capitalize()} - OHLC Price Lines",
-            xaxis_title="Date",
-            yaxis_title="Price (USDT)",
-            height=400,
-            hovermode='x unified'
-        )
+        /* ============ Sidebar Styling ============ */
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #1a1d26 0%, #0e1117 100%);
+            border-right: 1px solid var(--border-color);
+        }
         
-        st.plotly_chart(fig_ohlc, use_container_width=True)
-
-        # 3. Price Range (High-Low) Chart
-        col1, col2 = st.columns(2)
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
+            color: var(--text-primary);
+        }
         
-        with col1:
-            st.subheader("📏 Daily Price Range")
-            fig_range = go.Figure()
-            
-            # Calculate daily range
-            df['range'] = df['high'] - df['low']
-            df['range_pct'] = ((df['high'] - df['low']) / df['low']) * 100
-            
-            fig_range.add_trace(go.Bar(
-                x=df.index, 
-                y=df['range'],
-                name='Price Range',
-                marker_color='purple'
-            ))
-            
-            fig_range.update_layout(
-                title="Daily High-Low Range",
-                xaxis_title="Date",
-                yaxis_title="Range (USDT)",
-                height=350
-            )
-            
-            st.plotly_chart(fig_range, use_container_width=True)
+        /* Sidebar header */
+        .sidebar-header {
+            text-align: center;
+            padding: 2rem 1rem;
+            background: var(--accent-gradient);
+            border-radius: 0 0 20px 20px;
+            margin: -1rem -1rem 1.5rem -1rem;
+        }
         
-        with col2:
-            st.subheader("📊 Volume Distribution")
-            fig_vol_dist = go.Figure()
-            
-            fig_vol_dist.add_trace(go.Histogram(
-                x=df['volume'],
-                nbinsx=50,
-                name='Volume Distribution',
-                marker_color='lightblue'
-            ))
-            
-            fig_vol_dist.update_layout(
-                title="Volume Distribution",
-                xaxis_title="Volume",
-                yaxis_title="Frequency",
-                height=350
-            )
-            
-            st.plotly_chart(fig_vol_dist, use_container_width=True)
-
-        # 4. Price Statistics Cards
-        st.subheader("💹 Key Metrics")
-        col1, col2, col3, col4 = st.columns(4)
+        .sidebar-header h1 {
+            color: white !important;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin: 0.5rem 0 0 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
         
-        with col1:
-            fig_close = go.Figure()
-            fig_close.add_trace(go.Indicator(
-                mode="number+delta",
-                value=df['close'].iloc[-1],
-                title={'text': "Close Price"},
-                delta={'reference': df['close'].iloc[-2], 'relative': True},
-                number={'prefix': "$"}
-            ))
-            fig_close.update_layout(height=200)
-            st.plotly_chart(fig_close, use_container_width=True)
-
-        with col2:
-            fig_high = go.Figure()
-            fig_high.add_trace(go.Indicator(
-                mode="number+delta",
-                value=df['high'].iloc[-1],
-                title={'text': "High Price"},
-                delta={'reference': df['high'].iloc[-2], 'relative': True},
-                number={'prefix': "$"}
-            ))
-            fig_high.update_layout(height=200)
-            st.plotly_chart(fig_high, use_container_width=True)
+        .sidebar-header p {
+            color: rgba(255,255,255,0.85);
+            font-size: 0.8rem;
+            margin: 0.3rem 0 0 0;
+        }
         
-        with col3:
-            fig_low = go.Figure()
-            fig_low.add_trace(go.Indicator(
-                mode="number+delta",
-                value=df['low'].iloc[-1],
-                title={'text': "Low Price"},
-                delta={'reference': df['low'].iloc[-2], 'relative': True},
-                number={'prefix': "$"}
-            ))
-            fig_low.update_layout(height=200)
-            st.plotly_chart(fig_low, use_container_width=True)
-
-        with col4:
-            fig_vol_ind = go.Figure()
-            fig_vol_ind.add_trace(go.Indicator(
-                mode="number+delta",
-                value=df['volume'].iloc[-1],
-                title={'text': "Volume"},
-                delta={'reference': df['volume'].mean(), 'relative': True}
-            ))
-            fig_vol_ind.update_layout(height=200)
-            st.plotly_chart(fig_vol_ind, use_container_width=True)
-
-        # 5. Box Plots for OHLC
-        st.subheader("📦 OHLC Distribution")
-        fig_box = go.Figure()
+        .sidebar-logo {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
         
-        fig_box.add_trace(go.Box(y=df['open'], name='Open', marker_color='blue'))
-        fig_box.add_trace(go.Box(y=df['high'], name='High', marker_color='green'))
-        fig_box.add_trace(go.Box(y=df['low'], name='Low', marker_color='red'))
-        fig_box.add_trace(go.Box(y=df['close'], name='Close', marker_color='black'))
+        /* Navigation section */
+        .nav-section {
+            padding: 0.5rem 0;
+        }
         
-        fig_box.update_layout(
-            title=f"{coin.capitalize()} - OHLC Box Plot",
-            yaxis_title="Price (USDT)",
-            height=400
-        )
+        .nav-section-title {
+            color: var(--accent-primary) !important;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin: 1rem 0 0.5rem 0;
+            padding-left: 0.5rem;
+        }
         
-        st.plotly_chart(fig_box, use_container_width=True)
-
-        # 6. Volume Analysis
-        st.subheader("📊 Volume Analysis")
-        col1, col2 = st.columns(2)
+        /* Radio buttons styling */
+        .stRadio > label {
+            color: var(--text-secondary) !important;
+            font-weight: 500;
+        }
         
-        with col1:
-            # Volume over time
-            fig_vol_time = go.Figure()
-            fig_vol_time.add_trace(go.Scatter(
-                x=df.index,
-                y=df['volume'],
-                fill='tozeroy',
-                name='Volume',
-                line=dict(color='lightblue')
-            ))
-            # Add moving average
-            df['vol_ma'] = df['volume'].rolling(window=7).mean()
-            fig_vol_time.add_trace(go.Scatter(
-                x=df.index,
-                y=df['vol_ma'],
-                name='7-Day MA',
-                line=dict(color='darkblue', width=2)
-            ))
-            
-            fig_vol_time.update_layout(
-                title="Volume Over Time",
-                xaxis_title="Date",
-                yaxis_title="Volume",
-                height=350
-            )
-            st.plotly_chart(fig_vol_time, use_container_width=True)
+        .stRadio > div {
+            gap: 0.25rem;
+        }
         
-        with col2:
-            # Price vs Volume correlation
-            fig_corr = go.Figure()
-            fig_corr.add_trace(go.Scatter(
-                x=df['volume'],
-                y=df['close'],
-                mode='markers',
-                name='Price vs Volume',
-                marker=dict(
-                    size=5,
-                    color=df.index.astype('int64') / 10**9,
-                    colorscale='Viridis',
-                    showscale=True,
-                    colorbar=dict(title="Time")
-                )
-            ))
-            
-            fig_corr.update_layout(
-                title="Price vs Volume Correlation",
-                xaxis_title="Volume",
-                yaxis_title="Close Price (USDT)",
-                height=350
-            )
-            st.plotly_chart(fig_corr, use_container_width=True)
-
-    def plot_training_results(self, results: dict, coin: str):
-        """Plot training history and evaluation metrics."""
-        if not results:
-            st.warning(f"No training results available for {coin}")
-            return
-
-        # Metrics
-        evaluation = results.get('evaluation', {})
-        if evaluation:
-            st.subheader("📊 Model Performance Metrics")
-            cols = st.columns(len(evaluation))
-            for idx, (metric, value) in enumerate(evaluation.items()):
-                with cols[idx]:
-                    st.metric(
-                        label=metric.upper().replace('_', ' '),
-                        value=f"{value:.4f}"
-                    )
-
-        # Training history
-        history = results.get('history', {})
-        if history:
-            st.subheader("📈 Training History")
-            
-            fig = make_subplots(
-                rows=1, cols=2,
-                subplot_titles=('Loss', 'MAE'),
-                horizontal_spacing=0.1
-            )
-
-            # Loss
-            if 'loss' in history:
-                fig.add_trace(
-                    go.Scatter(y=history['loss'], name='Train Loss', mode='lines'),
-                    row=1, col=1
-                )
-            if 'val_loss' in history:
-                fig.add_trace(
-                    go.Scatter(y=history['val_loss'], name='Val Loss', mode='lines'),
-                    row=1, col=1
-                )
-
-            # MAE
-            if 'mae' in history:
-                fig.add_trace(
-                    go.Scatter(y=history['mae'], name='Train MAE', mode='lines'),
-                    row=1, col=2
-                )
-            if 'val_mae' in history:
-                fig.add_trace(
-                    go.Scatter(y=history['val_mae'], name='Val MAE', mode='lines'),
-                    row=1, col=2
-                )
-
-            fig.update_xaxes(title_text="Epoch", row=1, col=1)
-            fig.update_xaxes(title_text="Epoch", row=1, col=2)
-            fig.update_layout(height=400, showlegend=True)
-            
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Predictions vs Actual (if available)
-        if 'predictions' in results and 'actual' in results:
-            st.subheader("🎯 Predictions vs Actual")
-            
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                y=results['actual'],
-                name='Actual',
-                mode='lines',
-                line=dict(color='blue')
-            ))
-            fig.add_trace(go.Scatter(
-                y=results['predictions'],
-                name='Predicted',
-                mode='lines',
-                line=dict(color='red', dash='dash')
-            ))
-            
-            fig.update_layout(
-                title=f"{coin.capitalize()} - Test Set Predictions",
-                xaxis_title="Time Step",
-                yaxis_title="Price (USDT)",
-                height=400
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-
-    def plot_future_predictions(self, predictions: dict, coin: str):
-        """Plot future price predictions."""
-        if not predictions:
-            st.warning(f"No future predictions available for {coin}")
-            return
-
-        st.subheader("🔮 Future Price Predictions")
+        .stRadio > div > label {
+            background: transparent;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            color: var(--text-secondary);
+        }
         
-        # Display prediction metadata
-        if 'prediction_generated_at' in predictions:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.info(f"📅 Generated: {predictions['prediction_generated_at']}")
-            with col2:
-                st.info(f"📊 Forecast Horizon: {predictions.get('forecast_horizon_days', 'N/A')} days")
+        .stRadio > div > label:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: var(--text-primary);
+        }
         
-        # Handle different prediction data formats
-        pred_data = predictions.get('predictions', [])
-        timestamps = predictions.get('timestamps', [])
+        /* ============ Main Content Styles ============ */
+        .main > div {
+            padding: 1rem 2rem 2rem 2rem;
+        }
         
-        if not pred_data:
-            st.warning("No prediction data found")
-            return
+        /* Headers */
+        h1 {
+            color: var(--text-primary) !important;
+            font-weight: 700;
+            font-size: 2rem;
+            border-bottom: 3px solid;
+            border-image: var(--accent-gradient) 1;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        h2, h3 {
+            color: var(--text-primary) !important;
+            font-weight: 600;
+        }
+        
+        h2 {
+            font-size: 1.4rem;
+        }
+        
+        h3 {
+            font-size: 1.2rem;
+            color: var(--accent-primary) !important;
+        }
+        
+        /* ============ Metric Cards ============ */
+        [data-testid="stMetric"] {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        [data-testid="stMetric"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        [data-testid="stMetric"] label {
+            color: var(--text-secondary) !important;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        [data-testid="stMetric"] [data-testid="stMetricValue"] {
+            color: var(--text-primary) !important;
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        
+        /* ============ DataFrame Styling ============ */
+        [data-testid="stDataFrame"] {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        /* ============ Charts Container ============ */
+        [data-testid="stPlotlyChart"] {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+        }
+        
+        /* ============ Custom Info Boxes ============ */
+        .chart-intro {
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 4px solid var(--accent-primary);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .chart-intro h4 {
+            color: var(--accent-primary) !important;
+            margin: 0 0 0.5rem 0;
+            font-size: 0.95rem;
+        }
+        
+        .chart-intro p, .chart-intro li {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        
+        /* ============ Feature Cards ============ */
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            border-color: var(--accent-primary);
+        }
+        
+        .feature-card h4 {
+            color: var(--accent-primary) !important;
+            margin: 0 0 0.5rem 0;
+        }
+        
+        .feature-card p {
+            color: var(--text-secondary);
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        /* ============ Buttons ============ */
+        .stButton > button {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* ============ Select Boxes ============ */
+        .stSelectbox > div > div {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+        }
+        
+        /* ============ Expanders ============ */
+        .streamlit-expanderHeader {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary) !important;
+        }
+        
+        /* ============ Alerts ============ */
+        .stAlert {
+            border-radius: 8px;
+        }
+        
+        /* ============ Horizontal Rule ============ */
+        hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+            margin: 2rem 0;
+        }
+        
+        /* ============ Scrollbar ============ */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-primary);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-secondary);
+        }
+        
+        /* ============ Footer ============ */
+        .dashboard-footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 3rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-        # Extract price values if pred_data contains dictionaries
-        if isinstance(pred_data, list) and len(pred_data) > 0:
-            if isinstance(pred_data[0], dict):
-                # If predictions are in dict format like {'expected_price': value, 'day': ...}
-                prices = [p.get('expected_price', p.get('price', p.get('predicted_price', 0))) for p in pred_data]
-                if not timestamps:
-                    # Try to get timestamps or day numbers
-                    if 'timestamp' in pred_data[0]:
-                        timestamps = [p['timestamp'] for p in pred_data]
-                    elif 'day' in pred_data[0]:
-                        timestamps = [f"Day {p['day']}" for p in pred_data]
-            else:
-                # If predictions are already numbers
-                prices = pred_data
-        else:
-            st.warning("Invalid prediction data format")
-            return
 
-        # Create prediction chart
-        fig = go.Figure()
+def render_sidebar():
+    """Render professional sidebar navigation."""
+    with st.sidebar:
+        # Header with logo
+        st.markdown("""
+            <div class='sidebar-header'>
+                <div class='sidebar-logo'>🚀</div>
+                <h1>Crypto Analytics</h1>
+                <p>Bảng Điều Khiển Deep Learning</p>
+            </div>
+        """, unsafe_allow_html=True)
         
-        fig.add_trace(go.Scatter(
-            x=timestamps if timestamps else list(range(len(prices))),
-            y=prices,
-            mode='lines+markers',
-            name='Predicted Price',
-            line=dict(color='green', width=2),
-            marker=dict(size=8)
-        ))
+        # Navigation sections
+        st.markdown("<p class='nav-section-title'>📋 ĐIỀU HƯỚNG</p>", unsafe_allow_html=True)
         
-        fig.update_layout(
-            title=f"{coin.capitalize()} - Future Price Forecast",
-            xaxis_title="Date/Time",
-            yaxis_title="Price (USDT)",
-            height=400,
-            hovermode='x unified'
+        page = st.radio(
+            "Điều hướng",
+            [
+                "🏠 Trang Chủ",
+                "🌍 Tổng Quan Thị Trường",
+                "📈 Phân Tích Giá & Khối Lượng",
+                "📉 Phân Tích Biến Động & Rủi Ro",
+                "🔗 Phân Tích Tương Quan",
+                "📐 Chỉ Số Định Lượng",
+                "🧩 Phân Tích Nhân Tố",
+                "🧺 Phân Tích Danh Mục",
+                "🧠 Khuyến Nghị Đầu Tư",
+                "🔮 Dự Đoán Giá",
+                "⚖️ So Sánh Mô Hình",
+                "📊 Phân Tích Tâm Lý Thị Trường"
+            ],
+            label_visibility="collapsed"
         )
         
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Prediction statistics
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Predicted Min", f"${min(prices):.2f}")
-        with col2:
-            st.metric("Predicted Max", f"${max(prices):.2f}")
-        with col3:
-            avg_price = sum(prices) / len(prices)
-            st.metric("Predicted Avg", f"${avg_price:.2f}")
-        
-        # Show prediction trend
-        if len(prices) > 1 and prices[0] != 0:
-            trend = ((prices[-1] - prices[0]) / prices[0]) * 100
-            trend_text = "📈 Upward" if trend > 0 else "📉 Downward"
-            st.info(f"Overall Trend: {trend_text} ({trend:+.2f}%)")
-        elif len(prices) > 1:
-            change = prices[-1] - prices[0]
-            trend_text = "📈 Upward" if change > 0 else "📉 Downward" if change < 0 else "➡️ Flat"
-            st.info(f"Overall Trend: {trend_text} (Change: ${change:.2f})")
-        
-        # Display explanation if available
-        if 'explanation' in predictions:
-            with st.expander("ℹ️ About These Predictions"):
-                st.write(predictions['explanation'])
-    
-    def show(self):
-        """Main dashboard display."""
-        st.title("🚀 Cryptocurrency Prediction Dashboard")
         st.markdown("---")
-
-        # Sidebar for coin selection
-        st.sidebar.title("Settings")
-        selected_coin = st.sidebar.selectbox(
-            "Select Cryptocurrency",
-            self.coins,
-            format_func=lambda x: x.capitalize()
-        )
-
-        # Create tabs
-        tab1, tab2, tab3 = st.tabs([
-            "📊 Historical Data",
-            "🎓 Training Results",
-            "🔮 Future Predictions"
-        ])
-
-        with tab1:
-            st.header(f"Historical Data - {selected_coin.capitalize()}")
-            hist_data = self.load_historical_data(selected_coin)
-            
-            if not hist_data.empty:
-                # Display summary statistics
-                st.subheader("📈 Data Summary")
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.metric("Total Records", len(hist_data))
-                with col2:
-                    st.metric("Date Range", f"{(hist_data.index[-1] - hist_data.index[0]).days} days")
-                with col3:
-                    st.metric("Avg Price", f"${hist_data['close'].mean():.2f}")
-                with col4:
-                    st.metric("Price Volatility", f"{hist_data['close'].std():.2f}")
-                
-                st.markdown("---")
-                self.plot_historical_data(hist_data, selected_coin)
-                
-                # Display raw data table
-                with st.expander("📋 View Raw Data"):
-                    st.dataframe(hist_data.tail(50))
-
-        with tab2:
-            st.header(f"Training Results - {selected_coin.capitalize()}")
-            results = self.load_results(selected_coin)
-            self.plot_training_results(results, selected_coin)
-
-        with tab3:
-            st.header(f"Future Predictions - {selected_coin.capitalize()}")
-            predictions = self.load_predictions(selected_coin)
-            self.plot_future_predictions(predictions, selected_coin)
-
+        
+        # Coin selector (only for Price & Volume page)
+        selected_coin = None
+        if page == "📈 Phân Tích Giá & Khối Lượng":
+            st.markdown("<p class='nav-section-title'>💰 CHỌN COIN</p>", unsafe_allow_html=True)
+            coins = [
+                "bitcoin", "ethereum", "litecoin", "binancecoin",
+                "cardano", "solana", "pancakeswap", "axieinfinity", "thesandbox"
+            ]
+            selected_coin = st.selectbox(
+                "Coin",
+                coins,
+                format_func=lambda x: x.upper(),
+                label_visibility="collapsed"
+            )
+        
         # Footer
         st.markdown("---")
-        st.markdown(
-            """
-            <div style='text-align: center'>
-                <p>Crypto Prediction Dashboard | Powered by Deep Learning</p>
+        st.markdown("""
+            <div style='text-align: center; color: #666; font-size: 0.75rem; padding: 1rem 0;'>
+                <p style='margin: 0;'>Xây dựng với 💜 bằng Streamlit</p>
+                <p style='margin: 0.3rem 0 0 0;'>© 2024 Crypto Analytics</p>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        """, unsafe_allow_html=True)
+        
+        return page, selected_coin
 
 
 def main():
-    dashboard = MonitoringDashboard()
-    dashboard.show()
+    """Main dashboard application."""
+    configure_page()
+    inject_custom_css()
+    
+    # Render sidebar and get selection
+    page, selected_coin = render_sidebar()
+    
+    # Route to appropriate page
+    if page == "🏠 Trang Chủ":
+        render_home_page()
+    
+    elif page == "🌍 Tổng Quan Thị Trường":
+        render_market_overview_page()
+    
+    elif page == "📈 Phân Tích Giá & Khối Lượng":
+        render_price_volume_page(selected_coin)
+    
+    elif page == "📉 Phân Tích Biến Động & Rủi Ro":
+        render_volatility_risk_page()  # No coin param - selector inside page
+    
+    elif page == "🔗 Phân Tích Tương Quan":
+        render_correlation_page()
+    
+    elif page == "📐 Chỉ Số Định Lượng":
+        render_quant_metrics_page()
+    
+    elif page == "🧩 Phân Tích Nhân Tố":
+        render_factor_analysis_page()
+    
+    elif page == "🧺 Phân Tích Danh Mục":
+        render_portfolio_analysis_page()
+    
+    elif page == "🧠 Khuyến Nghị Đầu Tư":
+        render_investment_insights_page()
+    
+    elif page == "🔮 Dự Đoán Giá":
+        render_prediction_page()
+    
+    elif page == "⚖️ So Sánh Mô Hình":
+        render_compare_models_page()
+    
+    elif page == "📊 Phân Tích Tâm Lý Thị Trường":
+        render_sentiment_analysis_page()
+    
+    # Footer
+    st.markdown("""
+        <div class='dashboard-footer'>
+            <p>🚀 Crypto Analytics | Ứng dụng Deep Learning & Phân Tích Nâng Cao</p>
+            <p>Dữ liệu chỉ mang tính chất tham khảo. Không phải lời khuyên tài chính.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
